@@ -11,9 +11,10 @@ const shaderFrag = glslify('./../shaders/custom.frag');
 
 const CUBE_WIDTH = 2;
 const CONE_RADIUS = 2;
+const CONES_PER_CONNECTION = 5;
 const NUM_CUBES = 180;
 const MAX_TIMER = 1000;
-const SPEED = 10;
+const SPEED = 20;
 const DIMS = {
   x: { min: -500, length: 1000 },
   y: { min: -500, length: 1000 }
@@ -28,16 +29,19 @@ class Main extends AbstractApplication {
     super();
 
     this._controls.enableZoom = true;
-    this._camera.position.z = 700;
+    this._camera.position.z = 800;
     this._cubes = [];
-    this._cones = [];
+    this._cones = _.times(CONES_PER_CONNECTION, () => []);
 
     const light = new THREE.PointLight(0xFFFFFF, 1);
     light.position.copy(this._camera.position);
     this._scene.add(light);
 
     this._addCubes();
-    this._addCones();
+
+    for (let j = 0; j < CONES_PER_CONNECTION; j++) {
+      this._addCones(j);
+    }
     // this._moveCone({ index: 0, towardsIndex: 90, scale: 0.8 });
     this._createRelationships();
 
@@ -45,7 +49,7 @@ class Main extends AbstractApplication {
 
   }
 
-  _moveCone({ index, towardsIndex, scale }) {
+  _moveCone({ groupIndex, index, towardsIndex, scale }) {
     const posA = this._cubes[index].position.clone();
     const posB = this._cubes[towardsIndex].position.clone();
 
@@ -53,11 +57,11 @@ class Main extends AbstractApplication {
 
     let v = posB.sub(posA).normalize().setLength(distance * scale);
     
-    this._cones[index].mesh.position.x = posA.x + v.x;
-    this._cones[index].mesh.position.y = posA.y + v.y;
+    this._cones[groupIndex][index].mesh.position.x = posA.x + v.x;
+    this._cones[groupIndex][index].mesh.position.y = posA.y + v.y;
   }
 
-  _addCones() {
+  _addCones(groupIndex) {
     const thetaSlice = 360 / NUM_CUBES;
 
     var geometry = new THREE.CircleGeometry( CONE_RADIUS, 8 );//THREE.ConeGeometry( CONE_RADIUS, CONE_RADIUS * 10, 8 );
@@ -69,8 +73,10 @@ class Main extends AbstractApplication {
     for (let i = 0; i < NUM_CUBES; i++) {
       const mesh = new THREE.Mesh( geometry, material );
 
+      const scaleFactor = 0.4;
+
       const theta = thetaSlice * i;
-      const p = Trig.getRadialPosition({ angle: theta, radius: DIMS.x.length * 0.38 });
+      const p = Trig.getRadialPosition({ angle: theta, radius: DIMS.x.length * scaleFactor });
 
       mesh.position.x = p.x;
       mesh.position.y = p.y;
@@ -78,7 +84,7 @@ class Main extends AbstractApplication {
 
       mesh.rotation.z = Trig.d2r(360 - (theta + 90));
 
-      this._cones.push({
+      this._cones[groupIndex].push({
         i,
         mesh,
         name: chance.name(),
@@ -131,8 +137,9 @@ class Main extends AbstractApplication {
   }
 
   _createRelationships() {
-    for (let i = 0; i < this._cones.length; i++) {
-      this._cones[i].target = this._getRandomCube().i;
+    for (let i = 0; i < this._cubes.length; i++) {
+      const targetIndex = this._getRandomCube().i
+      this._cones[0][i].target = targetIndex;
     }
   }
 
@@ -141,8 +148,14 @@ class Main extends AbstractApplication {
 
     const progress = timer / MAX_TIMER;
 
-    for (let i = 0; i < this._cones.length; i++) {
-      this._moveCone({ index: i, towardsIndex: this._cones[i].target, scale: progress });
+    for (let i = 0; i < this._cubes.length; i++) {
+      if (i % 10 === 0) {
+        const target = this._cones[0][i].target;
+        for (let j = 0; j < CONES_PER_CONNECTION; j++) {
+          this._moveCone({ groupIndex: j, index: i, towardsIndex: target, scale: Math.max(progress - (j * 0.2 / CONES_PER_CONNECTION), 0) });
+        }
+      }
+      
     }
     // this._moveCone({ index: 0, towardsIndex: this._cones[0].target, scale: progress });
     // this._moveCone({ index: 1, towardsIndex: this._cones[1].target, scale: progress });
