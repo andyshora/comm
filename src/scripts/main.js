@@ -11,7 +11,7 @@ const shaderFrag = glslify('./../shaders/custom.frag');
 
 const CUBE_WIDTH = 2;
 const CONE_RADIUS = 2;
-const NUM_CUBES = 200;
+const NUM_CUBES = 180;
 const MAX_TIMER = 1000;
 const SPEED = 10;
 const DIMS = {
@@ -38,15 +38,29 @@ class Main extends AbstractApplication {
 
     this._addCubes();
     this._addCones();
+    // this._moveCone({ index: 0, towardsIndex: 90, scale: 0.8 });
+    this._createRelationships();
 
     this.animate();
 
   }
 
+  _moveCone({ index, towardsIndex, scale }) {
+    const posA = this._cubes[index].position.clone();
+    const posB = this._cubes[towardsIndex].position.clone();
+
+    const distance = posA.distanceTo(posB);
+
+    let v = posB.sub(posA).normalize().setLength(distance * scale);
+    
+    this._cones[index].mesh.position.x = posA.x + v.x;
+    this._cones[index].mesh.position.y = posA.y + v.y;
+  }
+
   _addCones() {
     const thetaSlice = 360 / NUM_CUBES;
 
-    var geometry = new THREE.ConeGeometry( CONE_RADIUS, CONE_RADIUS * 10, 8 );
+    var geometry = new THREE.CircleGeometry( CONE_RADIUS, 8 );//THREE.ConeGeometry( CONE_RADIUS, CONE_RADIUS * 10, 8 );
     var material = new THREE.ShaderMaterial({
       vertexShader: shaderVert,
       fragmentShader: shaderFrag
@@ -107,31 +121,31 @@ class Main extends AbstractApplication {
     }
   }
 
-  getCubePosition(i) {
+  _getCubePosition(i) {
     return this._cubes[i].position;
   }
 
-  getRandomCube() {
-    const index = chance.integer({min: 0, max: this._cubes.length - 1}); 
+  _getRandomCube() {
+    const index = chance.integer({ min: 0, max: this._cubes.length - 1 }); 
     return this._cubes[index];
+  }
+
+  _createRelationships() {
+    for (let i = 0; i < this._cones.length; i++) {
+      this._cones[i].target = this._getRandomCube().i;
+    }
   }
 
   animate(data) {
     super.animate();
-    // console.log(timer);
 
     const progress = timer / MAX_TIMER;
 
     for (let i = 0; i < this._cones.length; i++) {
-      const cone = this._cones[i];
-
-      const radius = 0.4 * DIMS.x.length - (progress * 0.4 * DIMS.x.length);
-
-      const p = Trig.getRadialPosition({ angle: cone.theta, radius: radius });
-
-      this._cones[i].mesh.position.y = p.x;
-      this._cones[i].mesh.position.x = p.y;
+      this._moveCone({ index: i, towardsIndex: this._cones[i].target, scale: progress });
     }
+    // this._moveCone({ index: 0, towardsIndex: this._cones[0].target, scale: progress });
+    // this._moveCone({ index: 1, towardsIndex: this._cones[1].target, scale: progress });
     
     this._renderer.render(this._scene, this._camera);
     timer += SPEED;
