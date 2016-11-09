@@ -15,6 +15,7 @@ const CONES_PER_CONNECTION = 5;
 const NUM_CUBES = 180;
 const MAX_TIMER = 1000;
 const SPEED = 20;
+const CONE_SPACING = 0.2;
 const DIMS = {
   x: { min: -500, length: 1000 },
   y: { min: -500, length: 1000 }
@@ -140,21 +141,22 @@ class Main extends AbstractApplication {
     for (let i = 0; i < this._cubes.length; i++) {
       const targetIndex = this._getRandomCube().i
       this._cones[0][i].target = targetIndex;
+      this._cones[0][i].scale = 0.3 + i * 2 / this._cubes.length;
     }
   }
 
   animate(data) {
     super.animate();
 
-    const progress = timer / MAX_TIMER;
+    let progress = timer / MAX_TIMER;
 
     for (let i = 0; i < this._cubes.length; i++) {
-      if (i % 10 === 0) {
-        const target = this._cones[0][i].target;
-        for (let j = 0; j < CONES_PER_CONNECTION; j++) {
-          this._moveCone({ groupIndex: j, index: i, towardsIndex: target, scale: Math.max(progress - (j * 0.2 / CONES_PER_CONNECTION), 0) });
-        }
+      const target = this._cones[0][i].target;
+      const scaledProgress = this._cones[0][i].scale * progress;
+      for (let j = 0; j < CONES_PER_CONNECTION; j++) {
+        this._moveCone({ groupIndex: j, index: i, towardsIndex: target, scale: Math.min(Math.max(scaledProgress - (j * CONE_SPACING / CONES_PER_CONNECTION), 0), 1) });
       }
+      
       
     }
     // this._moveCone({ index: 0, towardsIndex: this._cones[0].target, scale: progress });
@@ -163,7 +165,7 @@ class Main extends AbstractApplication {
     this._renderer.render(this._scene, this._camera);
     timer += SPEED;
 
-    if (timer > MAX_TIMER) {
+    if (timer > MAX_TIMER * 5) {
       timer = 0;
     }
   }
